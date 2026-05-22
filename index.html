@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CoS Tracker Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #f5f4f0;
+      color: #1a1a18;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 860px; margin: 0 auto; }
+    .header {
+      border-bottom: 1px solid #dddbd4;
+      padding-bottom: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .header .eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #888780;
+      margin-bottom: 4px;
+    }
+    .header h1 { font-size: 24px; font-weight: 500; margin-bottom: 4px; }
+    .header p { font-size: 14px; color: #5f5e5a; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #dddbd4;
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .card:hover { border-color: #b4b2a9; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card.disabled { opacity: 0.55; pointer-events: none; }
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .icon.blue { background: #e6f1fb; color: #185fa5; }
+    .icon.gray { background: #f1efe8; color: #5f5e5a; }
+    .badge {
+      font-size: 11px; font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .badge.active { background: #eaf3de; color: #3b6d11; }
+    .badge.soon { background: #f1efe8; color: #888780; }
+    .card h2 { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+    .card p { font-size: 13px; color: #5f5e5a; margin-bottom: 14px; }
+    .card-link {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 13px; color: #185fa5;
+    }
+    .footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 12px;
+      color: #888780;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <p class="eyebrow">Certificate of Service</p>
+      <h1>Operations Tracker Hub</h1>
+      <p>Select a form to enter your data</p>
+    </div>
+
+    <div class="grid">
+
+      <a href="daily-jobs.html" class="card">
+        <div class="card-top">
+          <div class="icon blue">📊</div>
+          <span class="badge active">Active</span>
+        </div>
+        <h2>Daily Jobs Tracker</h2>
+        <p>Log production volume and daily job counts</p>
+        <div class="card-link">Open form →</div>
+      </a>
+
+      <div class="card disabled">
+        <div class="card-top">
+          <div class="icon gray">📦</div>
+          <span class="badge soon">Coming soon</span>
+        </div>
+        <h2>Inventory Tracker</h2>
+        <p>Envelopes, paper, and supplies</p>
+      </div>
+
+      <div class="card disabled">
+        <div class="card-top">
+          <div class="icon gray">⚠️</div>
+          <span class="badge soon">Coming soon</span>
+        </div>
+        <h2>Error Tracker</h2>
+        <p>Log and categorize CS errors</p>
+      </div>
+
+      <div class="card disabled">
+        <div class="card-top">
+          <div class="icon gray">👥</div>
+          <span class="badge soon">Coming soon</span>
+        </div>
+        <h2>Client Activity</h2>
+        <p>Track account-level activity</p>
+      </div>
+
+    </div>
+
+    <p class="footer">Certificate of Service Operations Hub &middot; Internal use only</p>
+  </div>
+</body>
+</html>
