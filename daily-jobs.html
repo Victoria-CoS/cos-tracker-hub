@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Jobs Tracker — CoS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #f5f4f0;
+      color: #1a1a18;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+    .container { max-width: 560px; margin: 0 auto; }
+    .back {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; color: #5f5e5a; text-decoration: none;
+      margin-bottom: 1.5rem;
+    }
+    .back:hover { color: #1a1a18; }
+    .card {
+      background: #ffffff;
+      border: 1px solid #dddbd4;
+      border-radius: 12px;
+      padding: 1.75rem;
+    }
+    .card-header { margin-bottom: 1.5rem; }
+    .card-header .eyebrow {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #888780; margin-bottom: 4px;
+    }
+    .card-header h1 { font-size: 20px; font-weight: 500; }
+    .card-header p { font-size: 13px; color: #5f5e5a; margin-top: 4px; }
+    .divider { height: 1px; background: #f1efe8; margin: 1.25rem 0; }
+    .section-label {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+      text-transform: uppercase; color: #888780; margin-bottom: 1rem;
+    }
+    .field { margin-bottom: 1.25rem; }
+    .field label {
+      display: block; font-size: 13px; font-weight: 500;
+      margin-bottom: 6px; color: #2c2c2a;
+    }
+    .field .hint {
+      font-size: 12px; color: #888780; font-weight: 400; margin-left: 6px;
+    }
+    .field input {
+      width: 100%;
+      padding: 10px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      color: #1a1a18;
+      background: #fff;
+      border: 1px solid #dddbd4;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: #185fa5; }
+    .field input.optional { background: #fafaf8; }
+    .field input::placeholder { color: #b4b2a9; }
+    .field .currency-wrap { position: relative; }
+    .field .currency-wrap span {
+      position: absolute; left: 12px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px; color: #5f5e5a; pointer-events: none;
+    }
+    .field .currency-wrap input { padding-left: 24px; }
+    .field .currency-wrap input.optional { padding-left: 24px; }
+    .error-msg {
+      font-size: 12px; color: #a32d2d; margin-top: 4px; display: none;
+    }
+    .submit-btn {
+      width: 100%; padding: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 500;
+      color: #fff; background: #185fa5;
+      border: none; border-radius: 8px;
+      cursor: pointer; transition: background 0.15s;
+      margin-top: 0.5rem;
+    }
+    .submit-btn:hover { background: #0c447c; }
+    .submit-btn:disabled { background: #b4b2a9; cursor: not-allowed; }
+    .success-state {
+      text-align: center; padding: 2rem 1rem; display: none;
+    }
+    .success-state .check {
+      width: 48px; height: 48px; background: #eaf3de;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1rem; font-size: 22px;
+    }
+    .success-state h2 { font-size: 18px; font-weight: 500; margin-bottom: 6px; }
+    .success-state p { font-size: 13px; color: #5f5e5a; margin-bottom: 1.25rem; }
+    .success-state a { font-size: 13px; color: #185fa5; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="index.html" class="back">← Back to Hub</a>
+
+    <div class="card">
+      <div id="formState">
+        <div class="card-header">
+          <p class="eyebrow">Certificate of Service</p>
+          <h1>Daily Jobs Tracker</h1>
+          <p>Enter today's production metrics. Meter fields are monthly only.</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="section-label">Daily fields</p>
+
+        <div class="field">
+          <label for="date">Date</label>
+          <input type="date" id="date" name="date" />
+          <p class="error-msg" id="dateError">Date cannot be in the future.</p>
+        </div>
+
+        <div class="field">
+          <label for="jobs">Job count</label>
+          <input type="number" id="jobs" name="jobs" min="0" placeholder="e.g. 750" />
+        </div>
+
+        <div class="field">
+          <label for="sorter">Sorter count</label>
+          <input type="number" id="sorter" name="sorter" min="0" placeholder="e.g. 14500" />
+        </div>
+
+        <div class="field">
+          <label for="sorterDollar">Sorter postage</label>
+          <div class="currency-wrap">
+            <span>$</span>
+            <input type="number" id="sorterDollar" name="sorterDollar" min="0" step="0.01" placeholder="e.g. 10500.00" />
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <p class="section-label">Monthly fields <span style="font-weight:400; text-transform:none; letter-spacing:0;">— leave blank on non-meter days</span></p>
+
+        <div class="field">
+          <label for="meter">Meter count <span class="hint">optional</span></label>
+          <input type="number" id="meter" name="meter" min="0" placeholder="Leave blank if not a meter day" class="optional" />
+        </div>
+
+        <div class="field">
+          <label for="meterDollar">Meter postage <span class="hint">optional</span></label>
+          <div class="currency-wrap">
+            <span>$</span>
+            <input type="number" id="meterDollar" name="meterDollar" min="0" step="0.01" placeholder="Leave blank if not a meter day" class="optional" />
+          </div>
+        </div>
+
+        <button class="submit-btn" id="submitBtn" onclick="submitForm()">Submit entry</button>
+      </div>
+
+      <div class="success-state" id="successState">
+        <div class="check">✓</div>
+        <h2>Entry submitted</h2>
+        <p>Your data has been recorded in the Production Metrics sheet.</p>
+        <a href="#" onclick="resetForm()">Submit another entry</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── PASTE YOUR APPS SCRIPT URL HERE ──────────────────────────────────────
+    const SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const dateInput = document.getElementById('date');
+    dateInput.value = todayStr;
+    dateInput.max = todayStr;
+
+    dateInput.addEventListener('change', function () {
+      const err = document.getElementById('dateError');
+      if (this.value > todayStr) {
+        err.style.display = 'block';
+        this.value = todayStr;
+      } else {
+        err.style.display = 'none';
+      }
+    });
+
+    function submitForm() {
+      const date         = document.getElementById('date').value;
+      const jobs         = document.getElementById('jobs').value;
+      const sorter       = document.getElementById('sorter').value;
+      const sorterDollar = document.getElementById('sorterDollar').value;
+      const meter        = document.getElementById('meter').value;
+      const meterDollar  = document.getElementById('meterDollar').value;
+
+      if (!date || !jobs || !sorter || !sorterDollar) {
+        alert('Please fill in all daily fields before submitting.');
+        return;
+      }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      const payload = new URLSearchParams({
+        date, jobs, sorter, sorterDollar,
+        meter:       meter       || '',
+        meterDollar: meterDollar || ''
+      });
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: payload
+      }).then(() => {
+        document.getElementById('formState').style.display = 'none';
+        document.getElementById('successState').style.display = 'block';
+      }).catch(() => {
+        alert('Submission failed. Check your connection and try again.');
+        btn.disabled = false;
+        btn.textContent = 'Submit entry';
+      });
+    }
+
+    function resetForm() {
+      document.getElementById('formState').style.display = 'block';
+      document.getElementById('successState').style.display = 'none';
+      ['jobs','sorter','sorterDollar','meter','meterDollar'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('date').value = todayStr;
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = false;
+      btn.textContent = 'Submit entry';
+    }
+  </script>
+</body>
+</html>
