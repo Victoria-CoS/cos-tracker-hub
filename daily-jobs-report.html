@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Jobs Report — CoS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f4f0;
+      --surface:   #ffffff;
+      --border:    #dddbd4;
+      --border-lt: #eceae3;
+      --text-1:    #1a1a18;
+      --text-2:    #5f5e5a;
+      --text-3:    #999790;
+      --blue:      #185fa5;
+      --blue-bg:   #e8f1fb;
+      --green:     #3b6d11;
+      --green-bg:  #eaf3de;
+      --teal:      #0e7490;
+      --red:       #a32d2d;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      padding: 2.5rem 1.25rem;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+
+    .header {
+      display: flex; align-items: flex-end;
+      justify-content: space-between;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+      gap: 1rem; flex-wrap: wrap;
+    }
+    .header-left .eyebrow {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 5px;
+    }
+    .header-left h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.3px; }
+    .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .back-link { font-size: 13px; color: var(--text-2); text-decoration: none; }
+    .back-link:hover { color: var(--text-1); }
+    .refresh-note { font-size: 12px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+
+    .range-toggle {
+      display: flex; gap: 4px;
+      background: var(--border-lt);
+      border-radius: 8px; padding: 3px;
+    }
+    .range-btn {
+      padding: 5px 12px; border-radius: 6px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 500;
+      border: none; cursor: pointer;
+      background: transparent; color: var(--text-2);
+      transition: background 0.12s, color 0.12s;
+    }
+    .range-btn.active {
+      background: var(--surface); color: var(--text-1);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .state-msg {
+      text-align: center; padding: 4rem 1rem;
+      font-size: 14px; color: var(--text-2);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+      gap: 12px; margin-bottom: 1.5rem;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.1rem 1.2rem;
+    }
+    .kpi-label {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 22px; font-weight: 500; letter-spacing: -0.5px;
+    }
+    .kpi-delta { font-size: 12px; margin-top: 4px; }
+    .kpi-delta.up   { color: var(--green); }
+    .kpi-delta.down { color: var(--red); }
+    .kpi-delta.flat { color: var(--text-3); }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.4rem;
+      margin-bottom: 14px;
+    }
+    .chart-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 1.1rem; gap: 1rem; flex-wrap: wrap;
+    }
+    .chart-title { font-size: 14px; font-weight: 600; }
+    .chart-sub   { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-2);
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .chart-wrap { position: relative; height: 260px; }
+    .chart-wrap.md { height: 220px; }
+
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .table-header {
+      padding: 1rem 1.25rem 0.75rem;
+      border-bottom: 1px solid var(--border-lt);
+      font-size: 13px; font-weight: 600;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-3);
+      padding: 10px 1.25rem; text-align: right;
+      border-bottom: 1px solid var(--border-lt);
+    }
+    th:first-child { text-align: left; }
+    td {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px; padding: 10px 1.25rem; text-align: right;
+      border-bottom: 1px solid var(--border-lt); color: var(--text-1);
+    }
+    td:first-child {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 500; text-align: left;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg); }
+
+    .footer {
+      margin-top: 2rem; text-align: center;
+      font-size: 12px; color: var(--text-3);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-left">
+      <p class="eyebrow">Certificate of Service</p>
+      <h1>Daily Jobs Report</h1>
+    </div>
+    <div class="header-right">
+      <span class="refresh-note" id="lastRefresh"></span>
+      <div class="range-toggle">
+        <button class="range-btn" onclick="setRange(30,this)">30d</button>
+        <button class="range-btn active" onclick="setRange(90,this)">90d</button>
+        <button class="range-btn" onclick="setRange(365,this)">1yr</button>
+        <button class="range-btn" onclick="setRange(0,this)">All</button>
+      </div>
+      <a href="index.html" class="back-link">← Hub</a>
+    </div>
+  </div>
+
+  <div id="loadingState" class="state-msg">Loading data...</div>
+
+  <div id="reportContent" style="display:none;">
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Daily volume trends</div>
+          <div class="chart-sub">Job count and total envelopes over time</div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#185fa5;"></div>Jobs</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#0e7490;"></div>Envelopes</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="volumeChart"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Monthly postage spend</div>
+          <div class="chart-sub">Total postage per month with trend line</div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b6d11;"></div>Monthly total</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b; height:3px; border-radius:2px;"></div>Trend</div>
+        </div>
+      </div>
+      <div class="chart-wrap md"><canvas id="postageChart"></canvas></div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">Month-over-month summary</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Jobs</th>
+            <th>Total envelopes</th>
+            <th>Sorter postage</th>
+            <th>Meter postage</th>
+            <th>Total postage</th>
+          </tr>
+        </thead>
+        <tbody id="momBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="errorState" class="state-msg" style="display:none; color:#a32d2d;"></div>
+
+  <p class="footer">Data served securely via Apps Script &middot; Refreshes on page load</p>
+</div>
+
+<script>
+  // ── PASTE YOUR APPS SCRIPT URL HERE ──────────────────────────────────────
+  const SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+  // ─────────────────────────────────────────────────────────────────────────
+
+  let allRows = [];
+  let activeRange = 90;
+  let charts = {};
+
+  const fmt = {
+    num:  v => Number(v).toLocaleString(),
+    usd:  v => '$' + Number(v).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}),
+    usdK: v => '$' + (Number(v)/1000).toFixed(1) + 'k',
+  };
+
+  function filterRows(days) {
+    if (!days) return allRows;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return allRows.filter(r => r.date >= cutoff);
+  }
+
+  function monthKey(d) {
+    return d.toLocaleDateString('en-US', { year:'numeric', month:'short' });
+  }
+
+  function linreg(vals) {
+    const n = vals.length;
+    if (n < 2) return vals;
+    let sumX=0,sumY=0,sumXY=0,sumX2=0;
+    for (let i=0;i<n;i++){sumX+=i;sumY+=vals[i];sumXY+=i*vals[i];sumX2+=i*i;}
+    const slope = (n*sumXY-sumX*sumY)/(n*sumX2-sumX*sumX);
+    const intercept = (sumY-slope*sumX)/n;
+    return vals.map((_,i)=>Math.round(intercept+slope*i));
+  }
+
+  function buildKPIs(rows) {
+    const totalJobs = rows.reduce((s,r)=>s+r.jobs,0);
+    const totalEnv  = rows.reduce((s,r)=>s+r.totalEnv,0);
+    const totalPost = rows.reduce((s,r)=>s+r.totalPost,0);
+    const avgEnv    = Math.round(totalEnv/rows.length);
+
+    const now = new Date();
+    const thisMonth = rows.filter(r=>r.date.getMonth()===now.getMonth()&&r.date.getFullYear()===now.getFullYear());
+    const lastMonth = rows.filter(r=>{
+      const lm=new Date(now.getFullYear(),now.getMonth()-1,1);
+      return r.date.getMonth()===lm.getMonth()&&r.date.getFullYear()===lm.getFullYear();
+    });
+    const thisPost = thisMonth.reduce((s,r)=>s+r.totalPost,0);
+    const lastPost = lastMonth.reduce((s,r)=>s+r.totalPost,0);
+    const postDelta = lastPost?((thisPost-lastPost)/lastPost*100).toFixed(1):null;
+
+    document.getElementById('kpiGrid').innerHTML = [
+      { label:'Total jobs',          value: fmt.num(totalJobs), delta: null },
+      { label:'Total envelopes',     value: fmt.num(totalEnv),  delta: null },
+      { label:'Total postage',       value: fmt.usdK(totalPost),delta: null },
+      { label:'Avg daily envelopes', value: fmt.num(avgEnv),    delta: null },
+      { label:'This month postage',  value: fmt.usdK(thisPost),
+        delta: postDelta?{pct:postDelta,dir:postDelta>0?'up':postDelta<0?'down':'flat'}:null },
+    ].map(k=>`
+      <div class="kpi-card">
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-value">${k.value}</div>
+        ${k.delta?`<div class="kpi-delta ${k.delta.dir}">${k.delta.dir==='up'?'▲':'▼'} ${Math.abs(k.delta.pct)}% vs last month</div>`:''}
+      </div>`).join('');
+  }
+
+  function buildCharts(rows) {
+    Object.values(charts).forEach(c=>c.destroy());
+    charts={};
+    const gridColor='#eceae3';
+    const tickStyle={color:'#999790',font:{size:10}};
+
+    const dLabels=rows.map(r=>r.date.toLocaleDateString('en-US',{month:'short',day:'numeric'}));
+
+    charts.volume=new Chart(document.getElementById('volumeChart'),{
+      type:'line', data:{
+        labels:dLabels,
+        datasets:[
+          { label:'Jobs', data:rows.map(r=>r.jobs),
+            borderColor:'#185fa5', backgroundColor:'rgba(24,95,165,0.07)',
+            borderWidth:2,pointRadius:0,fill:true,tension:0.3,yAxisID:'yJobs' },
+          { label:'Envelopes', data:rows.map(r=>r.totalEnv),
+            borderColor:'#0e7490', backgroundColor:'rgba(14,116,144,0.07)',
+            borderWidth:2,pointRadius:0,fill:true,tension:0.3,yAxisID:'yEnv' }
+        ]
+      }, options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{grid:{color:gridColor},ticks:{...tickStyle,maxTicksLimit:10}},
+          yJobs:{position:'left',grid:{color:gridColor},ticks:{...tickStyle},
+            title:{display:true,text:'Jobs',color:'#185fa5',font:{size:11}}},
+          yEnv:{position:'right',grid:{drawOnChartArea:false},
+            ticks:{...tickStyle,callback:v=>(v/1000).toFixed(0)+'k'},
+            title:{display:true,text:'Envelopes',color:'#0e7490',font:{size:11}}}
+        }
+      }
+    });
+
+    const monthMap={};
+    rows.forEach(r=>{const k=monthKey(r.date);monthMap[k]=(monthMap[k]||0)+r.totalPost;});
+    const mLabels=Object.keys(monthMap);
+    const mVals=Object.values(monthMap);
+
+    charts.postage=new Chart(document.getElementById('postageChart'),{
+      type:'line', data:{
+        labels:mLabels,
+        datasets:[
+          { label:'Monthly postage', data:mVals,
+            borderColor:'#3b6d11', backgroundColor:'rgba(59,109,17,0.08)',
+            borderWidth:2,pointRadius:4,pointBackgroundColor:'#3b6d11',fill:true,tension:0.2 },
+          { label:'Trend', data:linreg(mVals),
+            borderColor:'#f59e0b', borderWidth:2, borderDash:[5,4],
+            pointRadius:0, fill:false, tension:0 }
+        ]
+      }, options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{grid:{color:gridColor},ticks:{...tickStyle}},
+          y:{grid:{color:gridColor},ticks:{...tickStyle,callback:v=>'$'+(v/1000).toFixed(0)+'k'}}
+        }
+      }
+    });
+  }
+
+  function buildTable(rows) {
+    const monthMap={};
+    rows.forEach(r=>{
+      const k=monthKey(r.date);
+      if(!monthMap[k]) monthMap[k]={jobs:0,env:0,sorterP:0,meterP:0,totalP:0};
+      monthMap[k].jobs+=r.jobs; monthMap[k].env+=r.totalEnv;
+      monthMap[k].sorterP+=r.sorterPost; monthMap[k].meterP+=r.meterPost;
+      monthMap[k].totalP+=r.totalPost;
+    });
+    document.getElementById('momBody').innerHTML=Object.keys(monthMap).reverse().map(m=>{
+      const d=monthMap[m];
+      return `<tr>
+        <td>${m}</td><td>${fmt.num(d.jobs)}</td><td>${fmt.num(d.env)}</td>
+        <td>${fmt.usd(d.sorterP)}</td>
+        <td>${d.meterP>0?fmt.usd(d.meterP):'—'}</td>
+        <td>${fmt.usd(d.totalP)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function render(days) {
+    const rows=filterRows(days);
+    buildKPIs(rows); buildCharts(rows); buildTable(rows);
+  }
+
+  function setRange(days,btn) {
+    activeRange=days;
+    document.querySelectorAll('.range-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    render(days);
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(SCRIPT_URL);
+      if (!res.ok) throw new Error('Request failed');
+      const json = await res.json();
+      if (json.result !== 'success') throw new Error(json.message||'Unknown error');
+
+      allRows = json.rows.map(r=>({...r, date: new Date(r.date)}))
+                         .filter(r=>!isNaN(r.date))
+                         .sort((a,b)=>a.date-b.date);
+
+      if (!allRows.length) throw new Error('No data rows found');
+
+      document.getElementById('loadingState').style.display='none';
+      document.getElementById('reportContent').style.display='block';
+      document.getElementById('lastRefresh').textContent=
+        'Updated '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+      render(activeRange);
+    } catch(err) {
+      document.getElementById('loadingState').style.display='none';
+      const el=document.getElementById('errorState');
+      el.style.display='block';
+      el.textContent='Could not load data. ('+err.message+')';
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
