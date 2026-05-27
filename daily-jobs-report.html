@@ -418,10 +418,17 @@
     try {
       const res = await fetch(SCRIPT_URL);
       if (!res.ok) throw new Error('Request failed');
-      const text = await res.text();
-      allRows = parseCSV(text);
+      const json = await res.json();
+      console.log('Result:', json.result, 'Rows:', json.rows ? json.rows.length : 0);
+      if (json.result !== 'success') throw new Error(json.message || 'Script error');
+      if (!json.rows || !json.rows.length) throw new Error('No data rows found');
 
-      if (!allRows.length) throw new Error('No data rows found');
+      allRows = json.rows.map(r => ({...r, date: new Date(r.date)}))
+                         .filter(r => r.date && !isNaN(r.date))
+                         .sort((a,b) => a.date - b.date);
+
+      console.log('Parsed rows:', allRows.length);
+      if (!allRows.length) throw new Error('Dates could not be parsed');
 
       document.getElementById('loadingState').style.display='none';
       document.getElementById('reportContent').style.display='block';
