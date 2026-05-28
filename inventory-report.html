@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Report — CoS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #f5f4f0;
+      --surface:   #ffffff;
+      --border:    #dddbd4;
+      --border-lt: #eceae3;
+      --text-1:    #1a1a18;
+      --text-2:    #5f5e5a;
+      --text-3:    #999790;
+      --blue:      #185fa5;
+      --blue-bg:   #e8f1fb;
+      --green:     #3b6d11;
+      --green-bg:  #eaf3de;
+      --amber:     #b45309;
+      --amber-bg:  #fef3c7;
+      --red:       #a32d2d;
+      --red-bg:    #faeaea;
+    }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      padding: 2.5rem 1.25rem;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+
+    .header {
+      display: flex; align-items: flex-end;
+      justify-content: space-between;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2rem;
+      gap: 1rem; flex-wrap: wrap;
+    }
+    .header-left .eyebrow {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.09em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 5px;
+    }
+    .header-left h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.3px; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .back-link { font-size: 13px; color: var(--text-2); text-decoration: none; }
+    .back-link:hover { color: var(--text-1); }
+    .refresh-note { font-size: 12px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+
+    .state-msg {
+      text-align: center; padding: 4rem 1rem;
+      font-size: 14px; color: var(--text-2);
+    }
+
+    /* ── Days until empty cards ── */
+    .due-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px; margin-bottom: 1.5rem;
+    }
+    .due-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.2rem;
+      border-left: 4px solid var(--border);
+    }
+    .due-card.ok     { border-left-color: var(--green); }
+    .due-card.warn   { border-left-color: var(--amber); }
+    .due-card.urgent { border-left-color: var(--red); }
+    .due-label {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--text-3); margin-bottom: 6px;
+    }
+    .due-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 28px; font-weight: 500; letter-spacing: -0.5px;
+      margin-bottom: 2px;
+    }
+    .due-card.ok     .due-value { color: var(--green); }
+    .due-card.warn   .due-value { color: var(--amber); }
+    .due-card.urgent .due-value { color: var(--red); }
+    .due-sub { font-size: 12px; color: var(--text-3); }
+    .due-inventory { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+
+    /* ── Chart cards ── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.4rem;
+      margin-bottom: 14px;
+    }
+    .chart-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 1.1rem; gap: 1rem; flex-wrap: wrap;
+    }
+    .chart-title { font-size: 14px; font-weight: 600; }
+    .chart-sub   { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+    .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-2);
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .chart-wrap { position: relative; height: 240px; }
+
+    .footer {
+      margin-top: 2rem; text-align: center;
+      font-size: 12px; color: var(--text-3);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-left">
+      <p class="eyebrow">Certificate of Service</p>
+      <h1>Inventory Report</h1>
+    </div>
+    <div class="header-right">
+      <span class="refresh-note" id="lastRefresh"></span>
+      <a href="index.html" class="back-link">← Hub</a>
+    </div>
+  </div>
+
+  <div id="loadingState" class="state-msg">Loading data...</div>
+
+  <div id="reportContent" style="display:none;">
+
+    <!-- Days until empty -->
+    <div class="due-grid" id="dueGrid"></div>
+
+    <!-- Envelope inventory trend -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Envelope inventory over time</div>
+          <div class="chart-sub">Weekly shop + warehouse totals by type</div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#185fa5;"></div>#10</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#0e7490;"></div>6x9</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3b6d11;"></div>9x12</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="envChart"></canvas></div>
+    </div>
+
+    <!-- Paper inventory trend -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Paper inventory over time</div>
+          <div class="chart-sub">Total reams on hand (shop + warehouse) with usage trend</div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#b45309;"></div>Reams on hand</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b; height:3px; border-radius:2px;"></div>Trend</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="paperChart"></canvas></div>
+    </div>
+
+  </div>
+
+  <div id="errorState" class="state-msg" style="display:none; color:#a32d2d;"></div>
+
+  <p class="footer">Data served securely via Apps Script &middot; Refreshes on page load</p>
+</div>
+
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXikSJPW1aQA1u8xlS_eI8yJq3op3MkmuOhojEi03JNL88HINHe0INvJj7J-ISm4Tn/exec';
+
+  // Consumption splits
+  const E10_PCT   = 0.965;
+  const E6X9_PCT  = 0.025;
+  const E9X12_PCT = 0.010;
+
+  // Warning thresholds (days)
+  const ENV_WARN   = 90;
+  const PAPER_WARN = 60;
+
+  let charts = {};
+
+  function linreg(vals) {
+    const n = vals.length;
+    if (n < 2) return vals;
+    let sumX=0,sumY=0,sumXY=0,sumX2=0;
+    for (let i=0;i<n;i++){sumX+=i;sumY+=vals[i];sumXY+=i*vals[i];sumX2+=i*i;}
+    const slope=(n*sumXY-sumX*sumY)/(n*sumX2-sumX*sumX);
+    const intercept=(sumY-slope*sumX)/n;
+    return vals.map((_,i)=>Math.round(intercept+slope*i));
+  }
+
+  function dueClass(days) {
+    if (days === null) return '';
+    if (days < 30)  return 'urgent';
+    if (days < ENV_WARN) return 'warn';
+    return 'ok';
+  }
+
+  function paperDueClass(days) {
+    if (days === null) return '';
+    if (days < 30)  return 'urgent';
+    if (days < PAPER_WARN) return 'warn';
+    return 'ok';
+  }
+
+  function buildDueCards(jobRows, invRows) {
+    if (!invRows.length) return;
+
+    // Get latest inventory entry
+    const latest = invRows[invRows.length - 1];
+
+    // 60-day average daily consumption from jobs
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 60);
+    const recent = jobRows.filter(r => r.date >= cutoff);
+    const avgDaily = recent.length
+      ? recent.reduce((s,r) => s + r.totalEnv, 0) / recent.length
+      : 0;
+
+    // Current inventory
+    const e10Shop      = latest.e10_boxes * latest.e10_per;
+    const e10Warehouse = latest.e10_pallets * 36 * 2500;
+    const e10Total     = e10Shop + e10Warehouse;
+
+    const e6x9Total  = latest.e6x9_boxes * latest.e6x9_per;
+    const e9x12Total = latest.e9x12_boxes * latest.e9x12_per;
+
+    // Paper: shop reams + warehouse reams
+    const paperShopReams      = latest.paper_boxes * latest.paper_per;
+    const paperWarehouseReams = latest.paper_pallets * latest.paper_bpp * latest.paper_per;
+    const paperTotalReams     = paperShopReams + paperWarehouseReams;
+
+    // Days until empty
+    const e10Days   = avgDaily > 0 ? Math.round(e10Total   / (avgDaily * E10_PCT))   : null;
+    const e6x9Days  = avgDaily > 0 ? Math.round(e6x9Total  / (avgDaily * E6X9_PCT))  : null;
+    const e9x12Days = avgDaily > 0 ? Math.round(e9x12Total / (avgDaily * E9X12_PCT)) : null;
+
+    // Paper: avg weekly drawdown from last 8 inventory entries
+    const recentInv = invRows.slice(-8);
+    let paperDays = null;
+    if (recentInv.length >= 2) {
+      const drawdowns = [];
+      for (let i = 1; i < recentInv.length; i++) {
+        const prev = recentInv[i-1].paper_boxes * recentInv[i-1].paper_per +
+                     recentInv[i-1].paper_pallets * recentInv[i-1].paper_bpp * recentInv[i-1].paper_per;
+        const curr = recentInv[i].paper_boxes * recentInv[i].paper_per +
+                     recentInv[i].paper_pallets * recentInv[i].paper_bpp * recentInv[i].paper_per;
+        const diff = prev - curr;
+        if (diff > 0) drawdowns.push(diff);
+      }
+      if (drawdowns.length) {
+        const avgWeeklyUse = drawdowns.reduce((s,v) => s+v, 0) / drawdowns.length;
+        const avgDailyUse  = avgWeeklyUse / 7;
+        paperDays = avgDailyUse > 0 ? Math.round(paperTotalReams / avgDailyUse) : null;
+      }
+    }
+
+    const cards = [
+      { label: '#10 Envelopes',  days: e10Days,   inv: e10Total.toLocaleString() + ' envelopes',   cls: dueClass(e10Days) },
+      { label: '6x9 Envelopes',  days: e6x9Days,  inv: e6x9Total.toLocaleString() + ' envelopes',  cls: dueClass(e6x9Days) },
+      { label: '9x12 Envelopes', days: e9x12Days, inv: e9x12Total.toLocaleString() + ' envelopes', cls: dueClass(e9x12Days) },
+      { label: 'Paper',          days: paperDays, inv: paperTotalReams.toLocaleString() + ' reams', cls: paperDueClass(paperDays) },
+    ];
+
+    document.getElementById('dueGrid').innerHTML = cards.map(c => `
+      <div class="due-card ${c.cls}">
+        <div class="due-label">${c.label}</div>
+        <div class="due-value">${c.days !== null ? c.days : '—'}</div>
+        <div class="due-sub">days until empty</div>
+        <div class="due-inventory">${c.inv} on hand</div>
+      </div>`).join('');
+  }
+
+  function buildCharts(invRows) {
+    Object.values(charts).forEach(c => c.destroy());
+    charts = {};
+
+    const gridColor  = '#eceae3';
+    const tickStyle  = { color:'#999790', font:{size:10} };
+    const labels     = invRows.map(r => r.date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}));
+
+    // Envelope chart
+    const e10Data   = invRows.map(r => r.e10_boxes  * r.e10_per  + r.e10_pallets  * 36 * 2500);
+    const e6x9Data  = invRows.map(r => r.e6x9_boxes * r.e6x9_per);
+    const e9x12Data = invRows.map(r => r.e9x12_boxes* r.e9x12_per);
+
+    charts.env = new Chart(document.getElementById('envChart'), {
+      type: 'line', data: {
+        labels,
+        datasets: [
+          { label:'#10',  data: e10Data,
+            borderColor:'#185fa5', backgroundColor:'rgba(24,95,165,0.07)',
+            borderWidth:2, pointRadius:4, pointBackgroundColor:'#185fa5', fill:false, tension:0.2 },
+          { label:'6x9',  data: e6x9Data,
+            borderColor:'#0e7490', backgroundColor:'rgba(14,116,144,0.07)',
+            borderWidth:2, pointRadius:4, pointBackgroundColor:'#0e7490', fill:false, tension:0.2 },
+          { label:'9x12', data: e9x12Data,
+            borderColor:'#3b6d11', backgroundColor:'rgba(59,109,17,0.07)',
+            borderWidth:2, pointRadius:4, pointBackgroundColor:'#3b6d11', fill:false, tension:0.2 },
+        ]
+      }, options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{grid:{color:gridColor},ticks:{...tickStyle}},
+          y:{grid:{color:gridColor},ticks:{...tickStyle,callback:v=>(v/1000).toFixed(0)+'k'}}
+        }
+      }
+    });
+
+    // Paper chart
+    const paperData = invRows.map(r =>
+      r.paper_boxes * r.paper_per + r.paper_pallets * r.paper_bpp * r.paper_per
+    );
+
+    charts.paper = new Chart(document.getElementById('paperChart'), {
+      type: 'line', data: {
+        labels,
+        datasets: [
+          { label:'Reams on hand', data: paperData,
+            borderColor:'#b45309', backgroundColor:'rgba(180,83,9,0.08)',
+            borderWidth:2, pointRadius:4, pointBackgroundColor:'#b45309', fill:true, tension:0.2 },
+          { label:'Trend', data: linreg(paperData),
+            borderColor:'#f59e0b', borderWidth:2, borderDash:[5,4],
+            pointRadius:0, fill:false, tension:0 }
+        ]
+      }, options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{grid:{color:gridColor},ticks:{...tickStyle}},
+          y:{grid:{color:gridColor},ticks:{...tickStyle}}
+        }
+      }
+    });
+  }
+
+  async function load() {
+    try {
+      // Fetch jobs data
+      const jobRes  = await fetch(SCRIPT_URL + '?sheet=jobs');
+      const jobJson = await jobRes.json();
+      const jobRows = jobJson.rows.map(r => ({...r, date: new Date(r.date)}))
+                                   .filter(r => !isNaN(r.date))
+                                   .sort((a,b) => a.date - b.date);
+
+      // Fetch inventory data
+      const invRes  = await fetch(SCRIPT_URL + '?sheet=inventory');
+      const invJson = await invRes.json();
+
+      if (invJson.result !== 'success' || !invJson.rows.length) {
+        throw new Error('No inventory data yet. Submit your first weekly count to see the report.');
+      }
+
+      const invRows = invJson.rows.map(r => ({...r, date: new Date(r.date)}))
+                                   .filter(r => !isNaN(r.date))
+                                   .sort((a,b) => a.date - b.date);
+
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('reportContent').style.display = 'block';
+      document.getElementById('lastRefresh').textContent =
+        'Updated ' + new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+
+      buildDueCards(jobRows, invRows);
+      buildCharts(invRows);
+
+    } catch(err) {
+      document.getElementById('loadingState').style.display = 'none';
+      const el = document.getElementById('errorState');
+      el.style.display = 'block';
+      el.textContent = err.message;
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
