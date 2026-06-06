@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log Maintenance Issue — CoS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#f5f4f0; --surface:#fff; --border:#dddbd4; --border-lt:#eceae3;
+      --text-1:#1a1a18; --text-2:#5f5e5a; --text-3:#999790;
+      --blue:#185fa5; --blue-bg:#e8f1fb; --green:#3b6d11; --green-bg:#eaf3de;
+      --red:#a32d2d; --amber:#b45309; --amber-bg:#fef3c7;
+    }
+    body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text-1); min-height:100vh; padding:2rem 1.25rem; }
+    .container { max-width:580px; margin:0 auto; }
+    .back { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--text-2); text-decoration:none; margin-bottom:1.5rem; }
+    .back:hover { color:var(--text-1); }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
+    .eyebrow { font-size:11px; font-weight:500; letter-spacing:.09em; text-transform:uppercase; color:var(--text-3); margin-bottom:5px; }
+    h1 { font-size:20px; font-weight:600; margin-bottom:4px; }
+    .subtitle { font-size:13px; color:var(--text-2); margin-bottom:1.5rem; }
+    .divider { height:1px; background:var(--border-lt); margin:1.25rem 0; }
+    .field { margin-bottom:1.1rem; }
+    .field label { display:block; font-size:13px; font-weight:500; margin-bottom:5px; color:var(--text-2); }
+    .field input, .field select, .field textarea {
+      width:100%; padding:9px 12px; font-family:'DM Sans',sans-serif; font-size:14px;
+      color:var(--text-1); background:var(--surface); border:1px solid var(--border);
+      border-radius:8px; outline:none; transition:border-color .15s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--blue); }
+    .field textarea { resize:vertical; min-height:90px; }
+    .field .optional { font-size:12px; color:var(--text-3); font-weight:400; margin-left:4px; }
+
+    /* Radio state buttons */
+    .radio-group { display:flex; gap:8px; }
+    .radio-btn {
+      flex:1; padding:9px 8px; border-radius:8px;
+      border:1.5px solid var(--border); background:var(--surface);
+      font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
+      color:var(--text-2); cursor:pointer; text-align:center;
+      transition:all .15s;
+    }
+    .radio-btn:hover { border-color:var(--blue); color:var(--text-1); }
+    .radio-btn.selected-operational { border-color:var(--green); background:var(--green-bg); color:var(--green); }
+    .radio-btn.selected-intermittent { border-color:var(--amber); background:var(--amber-bg); color:var(--amber); }
+    .radio-btn.selected-down { border-color:var(--red); background:#faeaea; color:var(--red); }
+
+    .submit-btn {
+      width:100%; padding:12px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500;
+      color:#fff; background:var(--blue); border:none; border-radius:8px;
+      cursor:pointer; transition:background .15s; margin-top:.5rem;
+    }
+    .submit-btn:hover { background:#0c447c; }
+    .submit-btn:disabled { background:#b4b2a9; cursor:not-allowed; }
+    .success-state { text-align:center; padding:2rem 1rem; display:none; }
+    .check { width:48px; height:48px; background:var(--green-bg); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem; font-size:22px; }
+    .success-state h2 { font-size:18px; font-weight:600; margin-bottom:6px; }
+    .success-state p { font-size:13px; color:var(--text-2); margin-bottom:.5rem; }
+    .issue-id { font-family:'DM Mono',monospace; font-size:18px; font-weight:500; color:var(--blue); margin:.5rem 0 1rem; }
+    .success-state a { font-size:13px; color:var(--blue); text-decoration:none; }
+    .loading { text-align:center; padding:2rem; font-size:14px; color:var(--text-2); }
+  </style>
+</head>
+<body>
+<div class="container">
+  <a href="index.html" class="back">← Back to Hub</a>
+  <div class="card">
+    <div id="loadingState" class="loading">Loading form...</div>
+    <div id="formState" style="display:none;">
+      <p class="eyebrow">Certificate of Service</p>
+      <h1>Log Maintenance Issue</h1>
+      <p class="subtitle">Record a new machine maintenance issue.</p>
+      <div class="divider"></div>
+
+      <div class="field">
+        <label for="date">Date of issue</label>
+        <input type="date" id="date" />
+      </div>
+
+      <div class="field">
+        <label for="machine">Machine</label>
+        <select id="machine"><option value="">Select machine...</option></select>
+      </div>
+
+      <div class="field">
+        <label>Machine state <span style="color:var(--red)">*</span></label>
+        <div class="radio-group">
+          <button type="button" class="radio-btn" data-state="Operational" onclick="selectState(this)">Operational</button>
+          <button type="button" class="radio-btn" data-state="Intermittent" onclick="selectState(this)">Intermittent</button>
+          <button type="button" class="radio-btn" data-state="Down" onclick="selectState(this)">Down</button>
+        </div>
+        <input type="hidden" id="machineState" />
+      </div>
+
+      <div class="field">
+        <label for="issueType">Issue type</label>
+        <select id="issueType"><option value="">Select issue type...</option></select>
+      </div>
+
+      <div class="field">
+        <label for="issueNotes">Issue notes <span class="optional">optional</span></label>
+        <input type="text" id="issueNotes" placeholder="Brief additional context..." />
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label for="vendor">Vendor</label>
+        <select id="vendor"><option value="">Select vendor...</option></select>
+      </div>
+
+      <div class="field">
+        <label for="commType">Communication sent</label>
+        <select id="commType"><option value="">Select type...</option></select>
+      </div>
+
+      <div class="field">
+        <label for="description">Full description <span class="optional">optional</span></label>
+        <textarea id="description" placeholder="Describe the issue in detail..."></textarea>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" onclick="submitForm()">Log issue</button>
+    </div>
+
+    <div class="success-state" id="successState">
+      <div class="check">✓</div>
+      <h2>Issue logged</h2>
+      <p>Your issue has been recorded. Issue ID:</p>
+      <div class="issue-id" id="newIssueId"></div>
+      <p style="font-size:12px; color:var(--text-3); margin-bottom:1rem;">Keep this ID to log the resolution later.</p>
+      <a href="#" onclick="resetForm()">Log another issue</a>
+    </div>
+  </div>
+</div>
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXikSJPW1aQA1u8xlS_eI8yJq3op3MkmuOhojEi03JNL88HINHe0INvJj7J-ISm4Tn/exec';
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('date').value = today;
+  document.getElementById('date').max   = today;
+
+  async function loadSettings() {
+    try {
+      const res  = await fetch(SCRIPT_URL + '?sheet=maintenance_settings');
+      const data = await res.json();
+      populate('machine',  data.machines);
+      populate('issueType',data.issues);
+      populate('vendor',   data.vendors);
+      populate('commType', data.comms);
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('formState').style.display    = 'block';
+    } catch(e) {
+      document.getElementById('loadingState').textContent = 'Could not load form options. Please refresh.';
+    }
+  }
+
+  function populate(id, options) {
+    const sel = document.getElementById(id);
+    options.forEach(o => { const opt = document.createElement('option'); opt.value = o; opt.textContent = o; sel.appendChild(opt); });
+  }
+
+  let selectedState = '';
+  function selectState(btn) {
+    document.querySelectorAll('.radio-btn').forEach(b => b.className = 'radio-btn');
+    const state = btn.dataset.state.toLowerCase();
+    btn.classList.add('selected-' + state);
+    selectedState = btn.dataset.state;
+    document.getElementById('machineState').value = btn.dataset.state;
+  }
+
+  function submitForm() {
+    const date      = document.getElementById('date').value;
+    const machine   = document.getElementById('machine').value;
+    const state     = document.getElementById('machineState').value;
+    const issueType = document.getElementById('issueType').value;
+    const vendor    = document.getElementById('vendor').value;
+    const commType  = document.getElementById('commType').value;
+
+    if (!date || !machine || !state || !issueType || !vendor || !commType) {
+      alert('Please fill in all required fields, including machine state.');
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    const payload = new URLSearchParams({
+      formType: 'maintenance_issue',
+      date, machine, machineState: state,
+      issueType, issueNotes: document.getElementById('issueNotes').value,
+      vendor, commType, description: document.getElementById('description').value
+    });
+
+    fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: payload })
+      .then(async () => {
+        // Fetch the last issue ID
+        const res  = await fetch(SCRIPT_URL + '?sheet=maintenance_open');
+        const data = await res.json();
+        const last = data.rows[data.rows.length - 1];
+        document.getElementById('newIssueId').textContent = last ? last.id : '—';
+        document.getElementById('formState').style.display   = 'none';
+        document.getElementById('successState').style.display = 'block';
+      })
+      .catch(() => {
+        alert('Submission failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Log issue';
+      });
+  }
+
+  function resetForm() {
+    document.getElementById('formState').style.display    = 'block';
+    document.getElementById('successState').style.display = 'none';
+    document.getElementById('date').value       = today;
+    document.getElementById('machine').value    = '';
+    document.getElementById('machineState').value = '';
+    document.getElementById('issueType').value  = '';
+    document.getElementById('issueNotes').value = '';
+    document.getElementById('vendor').value     = '';
+    document.getElementById('commType').value   = '';
+    document.getElementById('description').value= '';
+    document.querySelectorAll('.radio-btn').forEach(b => b.className = 'radio-btn');
+    selectedState = '';
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = false;
+    btn.textContent = 'Log issue';
+  }
+
+  loadSettings();
+</script>
+</body>
+</html>

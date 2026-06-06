@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log Resolution — CoS</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#f5f4f0; --surface:#fff; --border:#dddbd4; --border-lt:#eceae3;
+      --text-1:#1a1a18; --text-2:#5f5e5a; --text-3:#999790;
+      --blue:#185fa5; --green:#3b6d11; --green-bg:#eaf3de;
+      --amber:#b45309; --amber-bg:#fef3c7; --red:#a32d2d;
+    }
+    body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text-1); min-height:100vh; padding:2rem 1.25rem; }
+    .container { max-width:580px; margin:0 auto; }
+    .back { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--text-2); text-decoration:none; margin-bottom:1.5rem; }
+    .back:hover { color:var(--text-1); }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.75rem; }
+    .eyebrow { font-size:11px; font-weight:500; letter-spacing:.09em; text-transform:uppercase; color:var(--text-3); margin-bottom:5px; }
+    h1 { font-size:20px; font-weight:600; margin-bottom:4px; }
+    .subtitle { font-size:13px; color:var(--text-2); margin-bottom:1.5rem; }
+    .divider { height:1px; background:var(--border-lt); margin:1.25rem 0; }
+    .field { margin-bottom:1.1rem; }
+    .field label { display:block; font-size:13px; font-weight:500; margin-bottom:5px; color:var(--text-2); }
+    .field select, .field input, .field textarea {
+      width:100%; padding:9px 12px; font-family:'DM Sans',sans-serif; font-size:14px;
+      color:var(--text-1); background:var(--surface); border:1px solid var(--border);
+      border-radius:8px; outline:none; transition:border-color .15s;
+    }
+    .field select:focus, .field input:focus, .field textarea:focus { border-color:var(--blue); }
+    .field textarea { resize:vertical; min-height:90px; }
+
+    /* Issue summary card */
+    .issue-summary {
+      background:var(--bg); border:1px solid var(--border-lt);
+      border-radius:8px; padding:12px 14px; margin-bottom:1.1rem;
+      display:none;
+    }
+    .issue-summary.visible { display:block; }
+    .issue-summary-label { font-size:11px; font-weight:500; letter-spacing:.07em; text-transform:uppercase; color:var(--text-3); margin-bottom:6px; }
+    .issue-summary-row { font-size:13px; color:var(--text-2); margin-bottom:3px; }
+    .issue-summary-row strong { color:var(--text-1); }
+
+    /* Radio status buttons */
+    .radio-group { display:flex; gap:8px; }
+    .radio-btn {
+      flex:1; padding:9px 8px; border-radius:8px;
+      border:1.5px solid var(--border); background:var(--surface);
+      font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500;
+      color:var(--text-2); cursor:pointer; text-align:center; transition:all .15s;
+    }
+    .radio-btn:hover { border-color:var(--blue); color:var(--text-1); }
+    .radio-btn.selected-in-progress { border-color:var(--amber); background:var(--amber-bg); color:var(--amber); }
+    .radio-btn.selected-resolved { border-color:var(--green); background:var(--green-bg); color:var(--green); }
+
+    .submit-btn {
+      width:100%; padding:12px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500;
+      color:#fff; background:var(--blue); border:none; border-radius:8px;
+      cursor:pointer; transition:background .15s; margin-top:.5rem;
+    }
+    .submit-btn:hover { background:#0c447c; }
+    .submit-btn:disabled { background:#b4b2a9; cursor:not-allowed; }
+    .success-state { text-align:center; padding:2rem 1rem; display:none; }
+    .check { width:48px; height:48px; background:var(--green-bg); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem; font-size:22px; }
+    .success-state h2 { font-size:18px; font-weight:600; margin-bottom:6px; }
+    .success-state p { font-size:13px; color:var(--text-2); margin-bottom:1.25rem; }
+    .success-state a { font-size:13px; color:var(--blue); text-decoration:none; }
+    .loading { text-align:center; padding:2rem; font-size:14px; color:var(--text-2); }
+    .no-issues { text-align:center; padding:2rem; font-size:14px; color:var(--text-2); display:none; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <a href="index.html" class="back">← Back to Hub</a>
+  <div class="card">
+    <div id="loadingState" class="loading">Loading open issues...</div>
+    <div id="noIssues" class="no-issues">No open issues found. All machines are up to date.</div>
+
+    <div id="formState" style="display:none;">
+      <p class="eyebrow">Certificate of Service</p>
+      <h1>Log Resolution</h1>
+      <p class="subtitle">Update the status of an open maintenance issue.</p>
+      <div class="divider"></div>
+
+      <div class="field">
+        <label for="issueSelect">Select open issue</label>
+        <select id="issueSelect" onchange="showIssueSummary()">
+          <option value="">Choose issue...</option>
+        </select>
+      </div>
+
+      <div class="issue-summary" id="issueSummary">
+        <div class="issue-summary-label">Issue details</div>
+        <div class="issue-summary-row"><strong>Machine:</strong> <span id="sum_machine"></span></div>
+        <div class="issue-summary-row"><strong>State:</strong> <span id="sum_state"></span></div>
+        <div class="issue-summary-row"><strong>Issue:</strong> <span id="sum_issue"></span></div>
+        <div class="issue-summary-row"><strong>Logged:</strong> <span id="sum_date"></span></div>
+        <div class="issue-summary-row"><strong>Current status:</strong> <span id="sum_status"></span></div>
+      </div>
+
+      <div class="field">
+        <label>Update status <span style="color:var(--red)">*</span></label>
+        <div class="radio-group">
+          <button type="button" class="radio-btn" data-status="In Progress" onclick="selectStatus(this)">In Progress</button>
+          <button type="button" class="radio-btn" data-status="Resolved" onclick="selectStatus(this)">Resolved</button>
+        </div>
+        <input type="hidden" id="newStatus" />
+      </div>
+
+      <div class="field">
+        <label for="resolveDate">Resolution date</label>
+        <input type="date" id="resolveDate" />
+      </div>
+
+      <div class="field">
+        <label for="resolveNotes">Resolution notes</label>
+        <textarea id="resolveNotes" placeholder="Describe what was done to resolve the issue..."></textarea>
+      </div>
+
+      <button class="submit-btn" id="submitBtn" onclick="submitForm()">Update issue</button>
+    </div>
+
+    <div class="success-state" id="successState">
+      <div class="check">✓</div>
+      <h2>Issue updated</h2>
+      <p>The maintenance record has been updated.</p>
+      <a href="#" onclick="location.reload()">Update another issue</a>
+    </div>
+  </div>
+</div>
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXikSJPW1aQA1u8xlS_eI8yJq3op3MkmuOhojEi03JNL88HINHe0INvJj7J-ISm4Tn/exec';
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('resolveDate').value = today;
+  document.getElementById('resolveDate').max   = today;
+
+  let openIssues = [];
+
+  async function loadOpenIssues() {
+    try {
+      const res  = await fetch(SCRIPT_URL + '?sheet=maintenance_open');
+      const data = await res.json();
+      openIssues = data.rows || [];
+      document.getElementById('loadingState').style.display = 'none';
+
+      if (!openIssues.length) {
+        document.getElementById('noIssues').style.display = 'block';
+        return;
+      }
+
+      const sel = document.getElementById('issueSelect');
+      openIssues.forEach(issue => {
+        const opt = document.createElement('option');
+        opt.value = issue.id;
+        opt.textContent = `${issue.id} — ${issue.machine} (${issue.date})`;
+        sel.appendChild(opt);
+      });
+
+      document.getElementById('formState').style.display = 'block';
+    } catch(e) {
+      document.getElementById('loadingState').textContent = 'Could not load open issues. Please refresh.';
+    }
+  }
+
+  function showIssueSummary() {
+    const id    = document.getElementById('issueSelect').value;
+    const issue = openIssues.find(i => i.id === id);
+    const summary = document.getElementById('issueSummary');
+    if (!issue) { summary.classList.remove('visible'); return; }
+    document.getElementById('sum_machine').textContent = issue.machine;
+    document.getElementById('sum_state').textContent   = issue.state;
+    document.getElementById('sum_issue').textContent   = issue.issueType + (issue.issueNotes ? ` — ${issue.issueNotes}` : '');
+    document.getElementById('sum_date').textContent    = issue.date;
+    document.getElementById('sum_status').textContent  = issue.status;
+    summary.classList.add('visible');
+  }
+
+  let selectedStatus = '';
+  function selectStatus(btn) {
+    document.querySelectorAll('.radio-btn').forEach(b => b.className = 'radio-btn');
+    const key = btn.dataset.status.toLowerCase().replace(' ','-');
+    btn.classList.add('selected-' + key);
+    selectedStatus = btn.dataset.status;
+    document.getElementById('newStatus').value = btn.dataset.status;
+  }
+
+  function submitForm() {
+    const issueId     = document.getElementById('issueSelect').value;
+    const status      = document.getElementById('newStatus').value;
+    const resolveDate = document.getElementById('resolveDate').value;
+    const resolveNotes= document.getElementById('resolveNotes').value;
+
+    if (!issueId || !status) {
+      alert('Please select an issue and a status.');
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+
+    const payload = new URLSearchParams({
+      formType: 'maintenance_resolve',
+      issueId, status, resolveDate, resolveNotes
+    });
+
+    fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: payload })
+      .then(() => {
+        document.getElementById('formState').style.display   = 'none';
+        document.getElementById('successState').style.display = 'block';
+      })
+      .catch(() => {
+        alert('Update failed. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Update issue';
+      });
+  }
+
+  loadOpenIssues();
+</script>
+</body>
+</html>
