@@ -118,6 +118,7 @@
           <label for="date">Date</label>
           <input type="date" id="date" name="date" />
           <p class="error-msg" id="dateError">Date cannot be in the future.</p>
+          <p id="lastDate" style="font-size:12px; color:#888780; margin-top:6px;"></p>
         </div>
 
         <div class="field">
@@ -187,6 +188,18 @@
         err.style.display = 'none';
       }
     });
+
+    // Fetch last recorded date from sheet
+    (async function() {
+      try {
+        const res  = await fetch(SCRIPT_URL + '?sheet=jobs');
+        const data = await res.json();
+        if (data.rows && data.rows.length) {
+          const lastDate = data.rows[data.rows.length - 1].date;
+          document.getElementById('lastDate').textContent = 'Last recorded date: ' + lastDate;
+        }
+      } catch(e) {}
+    })();
 
     // Prevent scroll wheel from changing number inputs
     document.querySelectorAll('input[type="number"]').forEach(input => {
