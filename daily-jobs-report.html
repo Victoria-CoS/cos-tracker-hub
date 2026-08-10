@@ -105,6 +105,8 @@
       font-family: 'DM Mono', monospace;
       font-size: 22px; font-weight: 500; letter-spacing: -0.5px;
     }
+    .kpi-value.up   { color: var(--green); }
+    .kpi-value.down { color: var(--red); }
     .kpi-delta { font-size: 12px; margin-top: 4px; }
     .kpi-delta.up   { color: var(--green); }
     .kpi-delta.down { color: var(--red); }
@@ -360,6 +362,40 @@
     return vals.map((_,i)=>Math.round(intercept+slope*i));
   }
 
+  function ttmGrowth(allData) {
+    // Trailing-twelve-months vs the prior twelve months, using only complete months.
+    const now = new Date();
+    const thisM = now.getMonth(), thisY = now.getFullYear();
+    const completeRows = allData.filter(r =>
+      !(r.date.getMonth()===thisM && r.date.getFullYear()===thisY) &&
+      isMonthComplete(r.date.getFullYear(), r.date.getMonth(), allData)
+    );
+
+    const byMonth = {};
+    completeRows.forEach(r => {
+      const key = r.date.getFullYear()*12 + r.date.getMonth();
+      if (!byMonth[key]) byMonth[key] = { jobs:0, totalEnv:0 };
+      byMonth[key].jobs     += r.jobs;
+      byMonth[key].totalEnv += r.totalEnv;
+    });
+
+    const keys = Object.keys(byMonth).map(Number).sort((a,b)=>a-b);
+    if (keys.length < 24) return null; // need two full 12-month windows to compare
+
+    const currentKeys = keys.slice(-12);
+    const priorKeys   = keys.slice(-24, -12);
+    const sum = (ks, field) => ks.reduce((s,k)=>s+byMonth[k][field], 0);
+
+    const curJobs = sum(currentKeys, 'jobs'), priorJobs = sum(priorKeys, 'jobs');
+    const curEnv  = sum(currentKeys, 'totalEnv'), priorEnv = sum(priorKeys, 'totalEnv');
+
+    return {
+      jobsGrowth: priorJobs ? (curJobs-priorJobs)/priorJobs*100 : null,
+      envGrowth:  priorEnv  ? (curEnv -priorEnv )/priorEnv *100  : null,
+      curJobs, priorJobs, curEnv, priorEnv
+    };
+  }
+
   function buildKPIs(rows, allData) {
     const now = new Date();
     const thisM = now.getMonth();
@@ -412,10 +448,27 @@
         delta: deltaHtml(envDelta) },
     ];
 
+    const ttm = ttmGrowth(allData);
+    const fmtPct = v => (v>0?'+':'') + v.toFixed(1) + '%';
+    if (ttm) {
+      kpis.push({
+        label: 'TTM growth — jobs',
+        value: ttm.jobsGrowth===null ? '—' : fmtPct(ttm.jobsGrowth),
+        valueClass: ttm.jobsGrowth>0 ? 'up' : ttm.jobsGrowth<0 ? 'down' : '',
+        sub: `${fmt.num(ttm.curJobs)} vs ${fmt.num(ttm.priorJobs)} prior TTM`,
+      });
+      kpis.push({
+        label: 'TTM growth — envelopes',
+        value: ttm.envGrowth===null ? '—' : fmtPct(ttm.envGrowth),
+        valueClass: ttm.envGrowth>0 ? 'up' : ttm.envGrowth<0 ? 'down' : '',
+        sub: `${fmt.num(ttm.curEnv)} vs ${fmt.num(ttm.priorEnv)} prior TTM`,
+      });
+    }
+
     document.getElementById('kpiGrid').innerHTML = kpis.map(k=>`
       <div class="kpi-card">
         <div class="kpi-label">${k.label}</div>
-        <div class="kpi-value">${k.value}</div>
+        <div class="kpi-value ${k.valueClass||''}">${k.value}</div>
         ${k.sub ? `<div class="kpi-delta flat">${k.sub}</div>` : ''}
         ${k.delta || ''}
       </div>`).join('');
