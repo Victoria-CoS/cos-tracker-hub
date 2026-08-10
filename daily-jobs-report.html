@@ -75,6 +75,18 @@
       font-size: 14px; color: var(--text-2);
     }
 
+    .entry-status {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--text-2);
+      margin-bottom: 1.25rem;
+    }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .status-dot.ok   { background: var(--green); }
+    .status-dot.warn { background: #b45309; }
+    .status-dot.bad  { background: var(--red); }
+
     .kpi-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
@@ -180,6 +192,7 @@
   <div id="loadingState" class="state-msg">Loading data...</div>
 
   <div id="reportContent" style="display:none;">
+    <div class="entry-status" id="entryStatus"></div>
     <div class="kpi-grid" id="kpiGrid"></div>
 
     <div class="chart-card">
@@ -289,15 +302,28 @@
     usdK: v => '$' + (Number(v)/1000).toFixed(1) + 'k',
   };
 
+  function weekdaysInRange(start, end) {
+    let count = 0;
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endD = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (d <= endD) {
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) count++;
+      d.setDate(d.getDate() + 1);
+    }
+    return count;
+  }
+
   function isMonthComplete(year, month, rows) {
-    // A month is complete if it has an entry in the last 7 days of the month
-    const lastDay = new Date(year, month+1, 0).getDate(); // last calendar day
-    const threshold = lastDay - 6; // on or after this day
-    return rows.some(r =>
-      r.date.getFullYear()===year &&
-      r.date.getMonth()===month &&
-      r.date.getDate()>=threshold
-    );
+    // A month is complete if entries cover most of its weekdays.
+    // Tolerance of 3 weekdays absorbs holidays without needing a calendar.
+    const monthStart = new Date(year, month, 1);
+    const monthEnd   = new Date(year, month+1, 0);
+    const weekdays = weekdaysInRange(monthStart, monthEnd);
+    const entered = rows.filter(r =>
+      r.date.getFullYear()===year && r.date.getMonth()===month
+    ).length;
+    return entered >= weekdays - 3;
   }
 
   function filterRows(days) {
@@ -630,6 +656,31 @@
     return rows.sort((a,b) => a.date - b.date);
   }
 
+  function renderEntryStatus() {
+    const el = document.getElementById('entryStatus');
+    if (!allRows.length) { el.innerHTML = ''; return; }
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const expected = weekdaysInRange(monthStart, now);
+    const entered = allRows.filter(r =>
+      r.date.getFullYear()===now.getFullYear() && r.date.getMonth()===now.getMonth()
+    ).length;
+
+    const lastEntry = allRows[allRows.length - 1].date;
+    const staleStart = new Date(lastEntry);
+    staleStart.setDate(staleStart.getDate() + 1);
+    const staleDays = Math.max(0, weekdaysInRange(staleStart, now));
+
+    const dotClass = staleDays <= 1 ? 'ok' : staleDays <= 3 ? 'warn' : 'bad';
+    const lastStr = lastEntry.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    const staleNote = staleDays > 1 ? ` (${staleDays} working days ago)` : '';
+
+    el.innerHTML = `<span class="status-dot ${dotClass}"></span>` +
+      `${entered} of ${expected} working days entered this month &middot; ` +
+      `Last entry: ${lastStr}${staleNote}`;
+  }
+
   async function load() {
     try {
       const res = await fetch(SCRIPT_URL);
@@ -651,6 +702,7 @@
       document.getElementById('lastRefresh').textContent=
         'Updated '+new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
 
+      renderEntryStatus();
       render(activeRange);
     } catch(err) {
       document.getElementById('loadingState').style.display='none';

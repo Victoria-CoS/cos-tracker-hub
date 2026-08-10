@@ -189,15 +189,48 @@
       }
     });
 
-    // Fetch last recorded date from sheet
+    function weekdaysInRange(start, end) {
+      let count = 0;
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const endD = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      while (d <= endD) {
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) count++;
+        d.setDate(d.getDate() + 1);
+      }
+      return count;
+    }
+
+    // Fetch entry status (last recorded date + this month's coverage) from sheet
     (async function() {
       try {
         const res  = await fetch(SCRIPT_URL + '?sheet=jobs');
         const data = await res.json();
-        if (data.rows && data.rows.length) {
-          const lastDate = data.rows[data.rows.length - 1].date;
-          document.getElementById('lastDate').textContent = 'Last recorded date: ' + lastDate;
-        }
+        if (!data.rows || !data.rows.length) return;
+
+        const rows = data.rows.map(r => ({...r, date: new Date(r.date)}))
+                               .filter(r => !isNaN(r.date))
+                               .sort((a,b) => a.date - b.date);
+        const lastEntry = rows[rows.length - 1].date;
+        const now = new Date();
+
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const expected = weekdaysInRange(monthStart, now);
+        const entered  = rows.filter(r =>
+          r.date.getFullYear()===now.getFullYear() && r.date.getMonth()===now.getMonth()
+        ).length;
+
+        const staleStart = new Date(lastEntry);
+        staleStart.setDate(staleStart.getDate() + 1);
+        const staleDays = Math.max(0, weekdaysInRange(staleStart, now));
+
+        const dotColor = staleDays <= 1 ? '#3b6d11' : staleDays <= 3 ? '#b45309' : '#a32d2d';
+        const lastStr  = lastEntry.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+        const staleNote = staleDays > 1 ? ` (${staleDays} working days ago)` : '';
+
+        document.getElementById('lastDate').innerHTML =
+          `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};margin-right:5px;"></span>` +
+          `Last entry: ${lastStr}${staleNote} &middot; ${entered} of ${expected} working days entered this month`;
       } catch(e) {}
     })();
 
